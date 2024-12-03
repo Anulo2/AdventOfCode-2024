@@ -1,4 +1,3 @@
-import type { DayScript } from "./type";
 import { processDay } from "./utils";
 
 // get number of days since 1st dicember
