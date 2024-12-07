@@ -23,6 +23,8 @@ function evaluateExpression(numbers: number[], operators: string[]): number {
 	return operators.reduce((result, operator, i) => {
 		if (operator === "+") return result + numbers[i + 1];
 		if (operator === "*") return result * numbers[i + 1];
+		if (operator === "-") return result - numbers[i + 1];
+		if (operator === "/") return result / numbers[i + 1];
 		if (operator === "||")
 			return Number(result.toString() + numbers[i + 1].toString());
 		return result;
