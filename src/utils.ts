@@ -8,10 +8,26 @@ export async function processDay(day: number): Promise<void> {
 	const inputTest1 = await Bun.file(`./src/${day}/test1.txt`).text();
 	const inputTest2 = await Bun.file(`./src/${day}/test2.txt`).text();
 
-	console.log(`Day ${day} - Part 1 Test: ${dayScript.part1(inputTest1)}`);
-	console.log(`Day ${day} - Part 1 Res: ${dayScript.part1(inputRes)}`);
-	console.log(`Day ${day} - Part 2 Test: ${dayScript.part2(inputTest2)}`);
-	console.log(`Day ${day} - Part 2 Res: ${dayScript.part2(inputRes)}`);
+	// Helper to handle sync and async results with proper typing
+	const handleResult = async (
+		fn: (input: string) => number | string | Promise<number | string>,
+		input: string,
+	): Promise<number | string> => {
+		const result = fn(input);
+		return result instanceof Promise ? await result : result;
+	};
+
+	// Process part1 and part2 results
+	const part1TestResult = await handleResult(dayScript.part1, inputTest1);
+	const part1Result = await handleResult(dayScript.part1, inputRes);
+	const part2TestResult = await handleResult(dayScript.part2, inputTest2);
+	const part2Result = await handleResult(dayScript.part2, inputRes);
+
+	// Output results
+	console.log(`Day ${day} - Part 1 Test: ${part1TestResult}`);
+	console.log(`Day ${day} - Part 1 Res: ${part1Result}`);
+	console.log(`Day ${day} - Part 2 Test: ${part2TestResult}`);
+	console.log(`Day ${day} - Part 2 Res: ${part2Result}`);
 }
 
 export async function getAvailableDays(): Promise<number[]> {

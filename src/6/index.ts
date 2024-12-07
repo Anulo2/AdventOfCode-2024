@@ -1,136 +1,135 @@
-const directionsMap: Record<string, [number, number]> = {
-	"^": [0, -1],
-	">": [1, 0],
-	v: [0, 1],
-	"<": [-1, 0],
-};
+import {
+	findStartingPos,
+	traverseMap,
+	nextStep,
+	rotateDirection,
+	directionsMap,
+} from "./utils";
 
-function nextStep(
-	map: string[][],
-	[x, y]: [number, number],
-	dir: string,
-): [number, number] {
-	const [dx, dy] = directionsMap[dir];
-	return [x + dx, y + dy];
-}
+export async function part1(input: string): Promise<number> {
+	const map = input
+		.trim()
+		.split("\n")
+		.map((line) => line.split(""));
 
-function rotateDirection(dir: string): string {
-	return { "^": ">", ">": "v", v: "<", "<": "^" }[dir] ?? "^";
-}
-
-function findStartingPos(
-	map: string[][],
-	directions: string[],
-): [number, number, string] {
-	return map.reduce<[number, number, string]>(
-		(acc, row, y) =>
-			directions.reduce<[number, number, string]>((innerAcc, dir) => {
-				const x = row.indexOf(dir);
-				return x !== -1 ? [x, y, dir] : innerAcc;
-			}, acc),
-		[0, 0, " "],
+	const [startX, startY, startDir] = findStartingPos(
+		map,
+		Object.keys(directionsMap),
 	);
+
+	const worker = new Worker(new URL("./worker.ts", import.meta.url).href);
+
+	const res: number = await new Promise((resolve) => {
+		worker.onmessage = (event) => {
+			resolve(event.data.steps); // Resolve the promise with the worker's result
+		};
+
+		worker.postMessage({ map, startX, startY, startDir, x: 0, y: 0 });
+	});
+
+	return res;
 }
 
-function traverseMap(
-	map: string[][],
-	startPos: [number, number, string],
-): number {
-	let pos = startPos;
-	let steps = 0;
+export async function part2(input: string): Promise<number> {
+	// Prepare the map and find starting position
+	const map = input
+		.trim()
+		.split("\n")
+		.map((line) => line.split(""));
 
-	while (pos[2] !== " ") {
-		const [x, y, dir] = pos;
-		const [nextX, nextY] = nextStep(map, [x, y], dir);
+	const [startX, startY, startDir] = findStartingPos(
+		map,
+		Object.keys(directionsMap),
+	);
 
-		if (
-			nextX < 0 ||
-			nextX >= map[0].length ||
-			nextY < 0 ||
-			nextY >= map.length
-		) {
-			break;
-		}
+	let jobs: {
+		data: Promise<{ steps: number; id: { x: number; y: number } }>;
+		id: { x: number; y: number };
+	}[] = [];
+	const maxJobs = 8;
+	let loopCount = 0;
 
-		if (map[nextY]?.[nextX] === "#") {
-			const newDir = rotateDirection(dir);
-			map[y][x] = newDir;
-			pos = [x, y, newDir];
-		} else {
-			map[y][x] = "X";
-			pos = [nextX, nextY, dir];
-		}
-
-		steps++;
+	// Create a pool of workers
+	const workerPool: Worker[] = [];
+	for (let i = 0; i < maxJobs; i++) {
+		workerPool.push(new Worker(new URL("./worker.ts", import.meta.url).href));
 	}
 
-	return map.flat().filter((cell) => cell === "X").length + 1;
-}
+	// Function to get an available worker from the pool
+	const getWorker = (): Worker => {
+		const worker = workerPool.pop();
+		if (!worker) {
+			throw new Error("No available workers in the pool");
+		}
+		return worker;
+	};
 
-export function part1(input: string): number {
-	const map = input
-		.trim()
-		.split("\n")
-		.map((line) => line.split(""));
-	const directions = ["^", ">", "v", "<"];
-	const startPos = findStartingPos(map, directions);
-	return traverseMap(map, startPos);
-}
+	// Function to return a worker to the pool
+	const returnWorker = (worker: Worker) => {
+		workerPool.push(worker);
+	};
 
-export function part2(input: string): number {
-	const map = input
-		.trim()
-		.split("\n")
-		.map((line) => line.split(""));
-	const directions = ["^", ">", "v", "<"];
-	const [startX, startY, startDir] = findStartingPos(map, directions);
+	// Add tasks to the queue for every open space on the map
+	for (let y = 0; y < map.length; y++) {
+		for (let x = 0; x < map[y].length; x++) {
+			if (map[y][x] === "." && !(x === startX && y === startY)) {
+				// Create a new map copy and mark the current location as blocked
+				const testMap = map.map((row) => row.slice());
+				testMap[y][x] = "#";
 
-	const loopCount = map.reduce((count, row, y) => {
-		return (
-			count +
-			row.reduce((innerCount, cell, x) => {
-				if (cell === "." && !(x === startX && y === startY)) {
-					const testMap = map.map((row) => row.slice());
-					testMap[y][x] = "#";
+				// Get a worker from the pool
+				const worker = getWorker();
+				const res: {
+					data: Promise<{ steps: number; id: { x: number; y: number } }>;
+					id: { x: number; y: number };
+				} = {
+					data: new Promise((resolve) => {
+						worker.onmessage = (event) => {
+							resolve(event.data); // Resolve the promise with the worker's result
+							returnWorker(worker); // Return the worker to the pool
+						};
 
-					let pos: [number, number, string] = [startX, startY, startDir];
-					const visited = new Set<string>();
-					let isLoop = false;
+						worker.postMessage({
+							map: testMap,
+							startX,
+							startY,
+							startDir,
+							x,
+							y,
+						});
+					}),
+					id: { x, y },
+				};
 
-					while (true) {
-						const [curX, curY, dir] = pos;
-						const [nextX, nextY] = nextStep(testMap, [curX, curY], dir);
+				jobs.push(res);
 
-						if (
-							nextX < 0 ||
-							nextX >= testMap[0].length ||
-							nextY < 0 ||
-							nextY >= testMap.length
-						) {
-							break;
+				if (jobs.length >= maxJobs) {
+					// Limit the number of concurrent jobs
+					try {
+						const result = await Promise.any(jobs.map((job) => job.data));
+
+						if (result.steps === -1) {
+							loopCount++;
 						}
 
-						if (testMap[nextY]?.[nextX] === "#") {
-							const newDir = rotateDirection(dir);
-							pos = [curX, curY, newDir];
-						} else {
-							pos = [nextX, nextY, dir];
-						}
-
-						const posKey = `${pos[0]},${pos[1]},${pos[2]}`;
-						if (visited.has(posKey)) {
-							isLoop = true;
-							break;
-						}
-						visited.add(posKey);
+						// remove the completed job
+						jobs = jobs.filter((job) => {
+							// deep compare
+							return JSON.stringify(job.id) !== JSON.stringify(result.id);
+						});
+					} catch (error) {
+						console.error("No job completed successfully", error);
 					}
-
-					return innerCount + (isLoop ? 1 : 0);
 				}
-				return innerCount;
-			}, 0)
-		);
-	}, 0);
+			}
+		}
+	}
+
+	// Wait for all remaining jobs to complete
+	const results = await Promise.all(jobs.map((job) => job.data));
+
+	// Check for any remaining loops
+	loopCount += results.filter((result) => result.steps === -1).length;
 
 	return loopCount;
 }
