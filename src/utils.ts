@@ -19,14 +19,12 @@ export async function processDay(day: number): Promise<void> {
 
 	// Process part1 and part2 results
 	const part1TestResult = await handleResult(dayScript.part1, inputTest1);
-	const part1Result = await handleResult(dayScript.part1, inputRes);
-	const part2TestResult = await handleResult(dayScript.part2, inputTest2);
-	const part2Result = await handleResult(dayScript.part2, inputRes);
-
-	// Output results
 	console.log(`Day ${day} - Part 1 Test: ${part1TestResult}`);
+	const part1Result = await handleResult(dayScript.part1, inputRes);
 	console.log(`Day ${day} - Part 1 Res: ${part1Result}`);
+	const part2TestResult = await handleResult(dayScript.part2, inputTest2);
 	console.log(`Day ${day} - Part 2 Test: ${part2TestResult}`);
+	const part2Result = await handleResult(dayScript.part2, inputRes);
 	console.log(`Day ${day} - Part 2 Res: ${part2Result}`);
 }
 
