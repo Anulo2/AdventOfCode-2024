@@ -1,13 +1,33 @@
 export function part1(input: string): number {
 	const { frequencies, lines } = parseInput(input);
 	const antinodes = calculateAntinodes(frequencies, lines, false);
+	//printMapWithAntinodes(frequencies, lines, antinodes);
 	return antinodes.size;
 }
 
 export function part2(input: string): number {
 	const { frequencies, lines } = parseInput(input);
 	const antinodes = calculateAntinodes(frequencies, lines, true);
+	//printMapWithAntinodes(frequencies, lines, antinodes);
 	return antinodes.size;
+}
+
+function printMapWithAntinodes(
+	frequencies: { [key: string]: [number, number][] },
+	lines: string[],
+	antinodes: Set<string>,
+): void {
+	const map = lines.map((line) => line.split(""));
+	for (const [char, value] of Object.entries(frequencies)) {
+		for (const [x, y] of value) {
+			map[y][x] = char;
+		}
+	}
+	for (const antinode of antinodes) {
+		const [x, y] = antinode.split(",").map(Number);
+		map[y][x] = "#";
+	}
+	console.log(map.map((line) => line.join("")).join("\n"));
 }
 
 function parseInput(input: string): {
