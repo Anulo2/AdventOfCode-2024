@@ -1,10 +1,4 @@
-import {
-	findStartingPos,
-	traverseMap,
-	nextStep,
-	rotateDirection,
-	directionsMap,
-} from "./utils";
+import { findStartingPos, directionsMap } from "./utils";
 
 export async function part1(input: string): Promise<number> {
 	const map = input
